@@ -14,7 +14,7 @@ Adding and closing packets is now done in batches. You pass an array of Parcel i
 
 ### Prerequisites
 
-- PHP 7.1
+- PHP 8.2
 - PHP curl library
 
 ### Installing

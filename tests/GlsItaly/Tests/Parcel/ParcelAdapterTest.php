@@ -2,6 +2,9 @@
 
 namespace GlsItaly\Tests;
 
+use MarkoSirec\GlsItaly\SDK\Exceptions\CloseParcelException;
+use MarkoSirec\GlsItaly\SDK\Exceptions\DeleteParcelException;
+use MarkoSirec\GlsItaly\SDK\Exceptions\ValidationException;
 use PHPUnit\Framework\TestCase;
 use MarkoSirec\GlsItaly\SDK\Adapters\ParcelAdapter as ParcelAdapter;
 use MarkoSirec\GlsItaly\SDK\Models\Parcel as Parcel;
@@ -11,19 +14,15 @@ use MarkoSirec\GlsItaly\SDK\Adapters\RequestData as RequestData;
 class ParcelAdapterTest extends \PHPUnit\Framework\TestCase
 {
 
-    /**
-     * @expectedException MarkoSirec\GlsItaly\SDK\Exceptions\ValidationException
-     */
     public function testMissingDataValidation(): void
     {
         $parcel = new Parcel();
         $parcelAdapter = new ParcelAdapter($this->getAuth(), $parcel);
-        $this->assertEquals(true, $parcelAdapter->get());
+
+        $this->expectException(ValidationException::class);
+        $this->assertTrue((bool)$parcelAdapter->get());
     }
 
-    /**
-     * @expectedException MarkoSirec\GlsItaly\SDK\Exceptions\ValidationException
-     */
     public function testMissingNameValidation(): void
     {
         $parcel = new Parcel();
@@ -34,7 +33,9 @@ class ParcelAdapterTest extends \PHPUnit\Framework\TestCase
         $parcel->setProvince('NU');
 
         $parcelAdapter = new ParcelAdapter($this->getAuth(), $parcel);
-        $this->assertEquals(true, $parcelAdapter->get());
+
+        $this->expectException(ValidationException::class);
+        $this->assertTrue((bool)$parcelAdapter->get());
     }
 
     public function testValidationSuccess(): void
@@ -58,7 +59,7 @@ class ParcelAdapterTest extends \PHPUnit\Framework\TestCase
             'waiting',
             ParcelAdapter::convertStatus('IN ATTESA DI CHIUSURA.')
         );
-        
+
         $this->assertEquals(
             'closed',
             ParcelAdapter::convertStatus('CHIUSA.')
@@ -84,9 +85,9 @@ class ParcelAdapterTest extends \PHPUnit\Framework\TestCase
               </Parcel>
             </ListParcel>';
 
-        $this->assertEquals(
+        $this->assertCount(
             1,
-            count(ParcelAdapter::parseListResponse($xml))
+            ParcelAdapter::parseListResponse($xml)
         );
     }
 
@@ -158,16 +159,13 @@ class ParcelAdapterTest extends \PHPUnit\Framework\TestCase
         );
     }
 
-    /**
-     * @expectedException MarkoSirec\GlsItaly\SDK\Exceptions\CloseParcelException
-     */
     public function testParseCloseResponseError(): void
     {
         $xml = '<?xml version="1.0" encoding="utf-8"?>
             <DescrizioneErrore>foo</DescrizioneErrore>';
 
-        $this->assertEquals(
-            true,
+        $this->expectException(CloseParcelException::class);
+        $this->assertTrue(
             ParcelAdapter::parseCloseResponse($xml)
         );
     }
@@ -188,24 +186,44 @@ class ParcelAdapterTest extends \PHPUnit\Framework\TestCase
         $xml = '<?xml version="1.0" encoding="utf-8"?>
             <DescrizioneErrore>Eliminazione della spedizione 123 avvenuta.</DescrizioneErrore>';
 
-        $this->assertEquals(
-            true,
+        $this->assertTrue(
             ParcelAdapter::parseDeleteResponse($xml, 123)
         );
     }
 
-    /**
-     * @expectedException MarkoSirec\GlsItaly\SDK\Exceptions\DeleteParcelException
-     */
+
     public function testParseDeleteResponseError(): void
     {
         $xml = '<?xml version="1.0" encoding="utf-8"?>
             <DescrizioneErrore>Spedizione 123 non presente.</DescrizioneErrore>';
 
-        $this->assertEquals(
-            true,
+        $this->expectException(DeleteParcelException::class);
+        $this->assertTrue(
             ParcelAdapter::parseDeleteResponse($xml, 123)
         );
+    }
+
+    public function testDifferentMapping(): void
+    {
+        $parcel = new Parcel();
+
+        $name = 'i have to many characters in the name property';
+        $parcel->setName($name);
+        $parcel->setAddress('Test street, 191');
+        $parcel->setCity('SOS ALINOS');
+        $parcel->setPostcode('08028');
+        $parcel->setProvince('NU');
+        $parcel->setWeight('2,7');
+
+        $parcelAdapter = new ParcelAdapter($this->getAuth(), $parcel);
+
+        $customMapping = require ('CustomParcelMapping.php');
+        $mapping = array_merge($parcelAdapter->getCurrentMapping(), $customMapping);
+
+        $parcelAdapter->setCurrentMapping($mapping);
+
+        $result = $parcelAdapter->get();
+        $this->assertEquals(strlen($name), strlen($result->RagioneSociale));
     }
 
     private function getAuth(): Auth

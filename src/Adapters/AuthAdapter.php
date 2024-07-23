@@ -2,8 +2,8 @@
 
 namespace MarkoSirec\GlsItaly\SDK\Adapters;
 
+use MarkoSirec\GlsItaly\SDK\Exceptions\AuthException;
 use MarkoSirec\GlsItaly\SDK\Models\Auth as Auth;
-use MarkoSirec\GlsItaly\SDK\Exceptions\AuthException as AuthException;
 
 /**
  * Author: Marko Sirec [m.sirec@gmail.com]
@@ -35,6 +35,7 @@ final class AuthAdapter extends BaseAdapter
     /**
      * Transforms auth data into a format specified by Gls
      * @return RequestData
+     * @throws AuthException see validateRequiredFields
      */
     public function get(): RequestData
     {
@@ -45,7 +46,7 @@ final class AuthAdapter extends BaseAdapter
         $requestData->SedeGls = $this->formatStringForXml($this->auth->getBranchId(), 2);
         $requestData->CodiceClienteGls = $this->formatStringForXml($this->auth->getClientId(), 6);
         $requestData->PasswordClienteGls = $this->formatStringForXml($this->auth->getPassword(), 10);
-        
+
         return $requestData;
     }
 
