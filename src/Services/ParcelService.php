@@ -124,8 +124,8 @@ final class ParcelService extends BaseService
         $xmlData = array_merge((array)$authAdapter->get(), $xmlData);
         $xml = new \SimpleXMLElement('<Info/>');
 
-        static::toXml($xml, $xmlData);
-        $result = static::get('CloseWorkDay', ['XMLCloseInfoParcel' => $xml->asXML()]);
+        ParcelService::toXml($xml, $xmlData);
+        $result = ParcelService::get('CloseWorkDay', ['XMLCloseInfoParcel' => $xml->asXML()]);
 
         return ParcelAdapter::parseCloseResponse($result);
     }

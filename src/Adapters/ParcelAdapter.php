@@ -2,6 +2,7 @@
 
 namespace MarkoSirec\GlsItaly\SDK\Adapters;
 
+use Exception;
 use MarkoSirec\GlsItaly\SDK\Models\Auth as Auth;
 use MarkoSirec\GlsItaly\SDK\Models\Parcel as Parcel;
 
@@ -11,6 +12,7 @@ use MarkoSirec\GlsItaly\SDK\Exceptions\AddParcelException as AddParcelException;
 use MarkoSirec\GlsItaly\SDK\Exceptions\CloseParcelException as CloseParcelException;
 
 use MarkoSirec\GlsItaly\SDK\Responses\AddParcelResponse as AddParcelResponse;
+use SimpleXMLElement;
 
 /**
  * Author: Marko Sirec [m.sirec@gmail.com]
@@ -28,8 +30,9 @@ use MarkoSirec\GlsItaly\SDK\Responses\AddParcelResponse as AddParcelResponse;
  */
 final class ParcelAdapter extends BaseAdapter
 {
-    private $parcel;
-    private $auth;
+    private Parcel $parcel;
+    private Auth $auth;
+    private array $currentMapping;
 
     const PARCEL_STATUS_MAPPING = [
         'IN ATTESA DI CHIUSURA.' => 'waiting',
@@ -37,219 +40,26 @@ final class ParcelAdapter extends BaseAdapter
     ];
 
     /**
-     * The main mapping constant. Fields are converted to Gls specific
-     * field names with the help of this class constant.
+     * @var array|null
      */
-    const PARCEL_MAPPING = [
-
-        'auth' => [
-            [
-                'getter' => 'getContractId',
-                'xmlElement' => 'CodiceContrattoGls',
-                'required' => true,
-                'errorMessage' => 'Missing contract id.'
-            ]
-        ],
-
-        'parcel' => [
-            [
-                'getter' => 'getName',
-                'xmlElement' => 'RagioneSociale',
-                'maxLength' => 35,
-                'required' => true,
-                'errorMessage' => 'Missing name.'
-            ],
-            [
-                'getter' => 'getAddress',
-                'xmlElement' => 'Indirizzo',
-                'maxLength' => 35,
-                'required' => true,
-                'errorMessage' => 'Missing address.'
-            ],
-            [
-                'getter' => 'getCity',
-                'xmlElement' => 'Localita',
-                'maxLength' => 30,
-                'required' => true,
-                'errorMessage' => 'Missing city.'
-            ],
-            [
-                'getter' => 'getPostcode',
-                'xmlElement' => 'Zipcode',
-                'maxLength' => 5,
-                'required' => true,
-                'errorMessage' => 'Missing postcode.'
-            ],
-            [
-                'getter' => 'getProvince',
-                'xmlElement' => 'Provincia',
-                'maxLength' => 2,
-                'required' => true,
-                'errorMessage' => 'Missing province.'
-            ],
-            [
-                'getter' => 'getOrderId',
-                'xmlElement' => 'Bda',
-                'maxLength' => 11
-            ],
-            [
-                'getter' => 'getOrderId',
-                'xmlElement' => 'ContatoreProgressivo',
-                'maxLength' => 11
-            ],
-            [
-                'getter' => 'getNumOfPackages',
-                'xmlElement' => 'Colli',
-                'maxLength' => 5,
-                'required' => true,
-                'errorMessage' => 'Missing number of packages.'
-            ],
-            [
-                'getter' => 'getIncoterm',
-                'xmlElement' => 'Incoterm',
-                'maxLength' => 2
-            ],
-            [
-                'getter' => 'getPortType',
-                'xmlElement' => 'TipoPorto',
-                'maxLength' => 1
-            ],
-            [
-                'getter' => 'getInsuranceAmount',
-                'xmlElement' => 'Assicurazione',
-                'maxLength' => 11
-            ],
-            [
-                'getter' => 'getVolumeWeight',
-                'xmlElement' => 'PesoVolume',
-                'maxLength' => 11
-            ],
-            [
-                'getter' => 'getCustomerReference',
-                'xmlElement' => 'RiferimentoCliente',
-                'maxLength' => 600
-            ],
-            [
-                'getter' => 'getWeight',
-                'xmlElement' => 'PesoReale',
-                'maxLength' => 6,
-                'required' => true,
-                'errorMessage' => 'Missing weight.'
-            ],
-            [
-                'getter' => 'getPaymentAmount',
-                'xmlElement' => 'ImportoContrassegno',
-                'maxLength' => 10
-            ],
-            [
-                'getter' => 'getNoteOnLabel',
-                'xmlElement' => 'NoteSpedizione',
-                'maxLength' => 40
-            ],
-            [
-                'getter' => 'getPdcNote',
-                'xmlElement' => 'NoteAggiuntive',
-                'maxLength' => 40
-            ],
-            [
-                'getter' => 'getCustomerId',
-                'xmlElement' => 'CodiceClienteDestinatario',
-                'maxLength' => 30
-            ],
-            [
-                'getter' => 'getPackageType',
-                'xmlElement' => 'TipoCollo',
-                'maxLength' => 1,
-                'required' => true,
-                'errorMessage' => 'Missing package type.'
-            ],
-            [
-                'getter' => 'getEmail',
-                'xmlElement' => 'Email',
-                'maxLength' => 70
-            ],
-            [
-                'getter' => 'getPrimaryMobilePhoneNumber',
-                'xmlElement' => 'Cellulare1',
-                'maxLength' => 10
-            ],
-            [
-                'getter' => 'getSecondaryMobilePhoneNumber',
-                'xmlElement' => 'Cellulare2',
-                'maxLength' => 10
-            ],
-            [
-                'getter' => 'getAdditionalServices',
-                'xmlElement' => 'ServiziAccessori',
-                'maxLength' => 50
-            ],
-            [
-                'getter' => 'getPaymentMethod',
-                'xmlElement' => 'ModalitaIncasso',
-                'maxLength' => 4
-            ],
-            [
-                'getter' => 'getDeliveryDate',
-                'xmlElement' => 'DataPrenotazioneGDO',
-                'maxLength' => 6
-            ],
-            [
-                'getter' => 'getLabelFormat',
-                'xmlElement' => 'FormatoPdf',
-                'maxLength' => 2
-            ],
-            [
-                'getter' => 'getIdentPin',
-                'xmlElement' => 'IdentPIN',
-                'maxLength' => 12
-            ],
-            [
-                'getter' => 'getInsuranceType',
-                'xmlElement' => 'AssicurazioneIntegrativa',
-                'maxLength' => 1
-            ],
-            [
-                'getter' => 'getAdditionalPrivacyText',
-                'xmlElement' => 'InfoPrivacy',
-                'maxLength' => 50
-            ],
-            [
-                'getter' => 'getPickUpDelivery',
-                'xmlElement' => 'FermoDeposito',
-                'maxLength' => 1
-            ],
-            [
-                'getter' => 'getPickUpPoint',
-                'xmlElement' => 'SiglaSedeFermoDeposito',
-                'maxLength' => 4
-            ],
-            [
-                'getter' => 'getShipmentType',
-                'xmlElement' => 'TipoSpedizione',
-                'maxLength' => 1
-            ],
-            [
-                'getter' => 'getReferencePersonName',
-                'xmlElement' => 'PersonaRiferimento',
-                'maxLength' => 50
-            ],
-            [
-                'getter' => 'getReferencePersonPhoneNumber',
-                'xmlElement' => 'TelefonoDestinatario',
-                'maxLength' => 16
-            ],
-        ]
-    ];
+    private $parcelMapping;
 
     /**
      * Class construct
      * @param Auth   $auth   An instance of the Auth model
      * @param Parcel $parcel An instance of the Parcel model
      */
-    public function __construct(Auth $auth, Parcel $parcel)
+    public function __construct(Auth $auth, Parcel $parcel, array $parcelMapping = null)
     {
         $this->parcel = $parcel;
         $this->auth = $auth;
+
+        if (!empty($parcelMapping)) {
+            $this->parcelMapping = $parcelMapping;
+        } else {
+            $basicMapper = include(dirname(__FILE__, 2) . '/BaseParcelMapper.php');
+            $this->currentMapping = $basicMapper;
+        }
     }
 
     /**
@@ -261,7 +71,7 @@ final class ParcelAdapter extends BaseAdapter
     {
         $requestData = new RequestData();
 
-        foreach (static::PARCEL_MAPPING as $object => $data) {
+        foreach ($this->currentMapping as $object => $data) {
             foreach ($data as $properties) {
                 $value = $this->{$object}->{$properties['getter']}();
 
@@ -290,8 +100,8 @@ final class ParcelAdapter extends BaseAdapter
      */
     public static function convertStatus(string $string): string
     {
-        if (isset(static::PARCEL_STATUS_MAPPING[$string])) {
-            return static::PARCEL_STATUS_MAPPING[$string];
+        if (isset(ParcelAdapter::PARCEL_STATUS_MAPPING[$string])) {
+            return ParcelAdapter::PARCEL_STATUS_MAPPING[$string];
         }
 
         return $string;
@@ -299,20 +109,19 @@ final class ParcelAdapter extends BaseAdapter
 
     /**
      * Parses the delete response from Gls
-     * @param  string $Responses     The original xml response as a string
-     * @param  int    $parcelId      The id of the parcel to delete
-     * @throws DeleteParcelException if the parcel can't be found
+     * @param  string $response      The original xml response as a string.
+     * @param  int    $parcelId      The id of the parcel to delete.
      * @return bool                  True on success
+     * @throws Exception             If the XML data could not be parsed.
+     * @throws DeleteParcelException If the parcel can't be found.
      */
     public static function parseDeleteResponse(string $response, int $parcelId): bool
     {
-        $response = new \SimpleXMLElement($response);
+        $response = new SimpleXMLElement($response);
         $response = (string)$response[0];
 
-        switch ($response) {
-
-            case 'Spedizione ' . $parcelId . ' non presente.':
-                $error = 'Can\'t find parcel ' . $parcelId;
+        if ($response == 'Spedizione ' . $parcelId . ' non presente.') {
+            $error = 'Can\'t find parcel ' . $parcelId;
         }
 
         if (isset($error)) {
@@ -324,12 +133,13 @@ final class ParcelAdapter extends BaseAdapter
 
     /**
      * Parses the response when trying to list parcels
-     * @param  string $result The raw xml response from Gls
-     * @return array          List of parcels
+     * @param string $result  The raw xml response from Gls.
+     * @return array          List of parcels.
+     * @throws Exception      If the XML data could not be parsed.
      */
     public static function parseListResponse(string $result): array
     {
-        $result = new \SimpleXMLElement($result);
+        $result = new SimpleXMLElement($result);
 
         if (!isset($result->Parcel)) {
             return [];
@@ -338,7 +148,7 @@ final class ParcelAdapter extends BaseAdapter
         $parcels = [];
 
         foreach ($result->Parcel as $pr) {
-            $parcels[] = static::parseListParcel($pr);
+            $parcels[] = ParcelAdapter::parseListParcel($pr);
         }
 
         return $parcels;
@@ -346,13 +156,13 @@ final class ParcelAdapter extends BaseAdapter
 
     /**
      * Parses the individual parcel from Gls
-     * @param  \SimpleXMLElement $pr The parcel XML element
+     * @param  SimpleXMLElement $pr The parcel XML element
      * @return Parcel                Instance of the parcel object
      */
-    public static function parseListParcel(\SimpleXMLElement $pr): Parcel
+    public static function parseListParcel(SimpleXMLElement $pr): Parcel
     {
         $parcel = new Parcel();
-        $parcel->setStatus(static::convertStatus((string)$pr->StatoSpedizione));
+        $parcel->setStatus(ParcelAdapter::convertStatus((string)$pr->StatoSpedizione));
         $parcel->setParcelId((string)$pr->NumSpedizione);
         $parcel->setOrderId((int)$pr->Ddt);
         $parcel->setName((string)$pr->DenominazioneDestinatario);
@@ -373,7 +183,7 @@ final class ParcelAdapter extends BaseAdapter
     public static function parseAddResponse(string $response): array
     {
         try {
-            $xmlResponse = new \SimpleXMLElement($response);
+            $xmlResponse = new SimpleXMLElement($response);
         } catch (Exception $e) {
             $exception = new AddParcelException('GLS IT returned non-xml response.');
             $exception->setResponse($response);
@@ -433,7 +243,7 @@ final class ParcelAdapter extends BaseAdapter
     public static function parseCloseResponse(string $response): bool
     {
         try {
-            $xmlResponse = new \SimpleXMLElement($response);
+            $xmlResponse = new SimpleXMLElement($response);
         } catch (Exception $e) {
             $exception = new CloseParcelException('GLS IT returned non-xml response.');
             $exception->setResponse($response);
@@ -444,10 +254,24 @@ final class ParcelAdapter extends BaseAdapter
             return true;
         }
 
-        $exception = new CloseParcelException('Please make sure you defined all the parcel parameters correctly. To get the response xml, please call the method getXmlResponse() on the exception object.');
+        $exception = new CloseParcelException('Please make sure you defined a' .
+            'll the parcel parameters correctly. To get the response xml, please call the method getXmlResponse() on ' .
+            ' the exception object.'
+        );
+
         $exception->setResponse($response);
         $exception->setXmlResponse($xmlResponse);
 
         throw $exception;
+    }
+
+    public function getCurrentMapping(): array
+    {
+        return $this->currentMapping;
+    }
+
+    public function setCurrentMapping(array $currentMapping): void
+    {
+        $this->currentMapping = $currentMapping;
     }
 }

@@ -2,6 +2,7 @@
 
 namespace MarkoSirec\GlsItaly\SDK\Adapters;
 
+use AllowDynamicProperties;
 use MarkoSirec\GlsItaly\SDK\Base as Base;
 
 /**
@@ -18,6 +19,8 @@ use MarkoSirec\GlsItaly\SDK\Base as Base;
  *
  * @package MarkoSirec\GlsItaly\SDK
  */
+#[AllowDynamicProperties]
 final class RequestData extends Base
 {
+
 }
