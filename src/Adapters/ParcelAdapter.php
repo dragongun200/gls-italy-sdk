@@ -55,7 +55,7 @@ final class ParcelAdapter extends BaseAdapter
         $this->auth = $auth;
 
         if (!empty($parcelMapping)) {
-            $this->parcelMapping = $parcelMapping;
+            $this->currentMapping = $parcelMapping;
         } else {
             $basicMapper = include(dirname(__FILE__, 2) . '/BaseParcelMapper.php');
             $this->currentMapping = $basicMapper;
